@@ -15,158 +15,91 @@ TODO:
 """
 
 
-wnd = pyglet.window.Window()
-keys = pyglet.window.key.KeyStateHandler()
-wnd.push_handlers(keys)
 
 mobs = pyglet.graphics.Batch()
 statics = pyglet.graphics.Batch()
 
 BB = namedtuple('BB', ['x', 'y', 'rx', 'ry'])
+Vec2 = namedtuple('Vec2', ['x', 'y'])
 
 
 class Obj:
     pass
 
 
-class Board:
-    def __init__(self, center_x, center_y, board_w, board_h, objects):
+class World:
+    def __init__(self, center_x, center_y, level):
         self.objects = defaultdict(set)
-        self.all_objects = {}
+        self.all_objects = set()
+
         self.center_x = center_x
         self.center_y = center_y
-        self.origin_x = center_x - board_w * 8
-        self.origin_y = center_y - board_h * 8
-        for x, y, obj in objects:
-            self.create_on_board(x, y, obj)
+        self.origin_x = center_x - level['width'] * 8
+        self.origin_y = center_y - level['height'] * 8
 
-    def create_on_board(self, cell_x, cell_y, obj):
-        x = self.origin_x + cell_x * 16
-        y = self.origin_y + cell_y * 16
-        self.create(x, y, obj)
+        self.create_level(level['objects'])
 
-    def get_cell_coord(self, x, y):
+    def __init__(self, window):
+        self.window = window
+
+
+    def create_level(self, ):
+
+
+
+
+    def create_level(self, objects):
+        for col, row, obj in objects:
+            x, y = self.get_xy_coord(col, row)
+            obj.move(x, y)
+            self.register_obj(obj)
+
+    def get_cell(self, x, y):
         return (x - self.origin_x) // 16, (y - self.origin_y) // 16
 
-    def create(self, x, y, obj):
-        if obj.is_player or obj.is_monster:
-            batch = mobs
-        else:
-            batch = statics
-        obj.x = x
-        obj.y = y
-        obj._graphic = Sprite(batch=batch)
-        self._update_graphic(obj)
+    def get_coord(self, col, row):
+        return self.origin_x + col * 16, self.origin_y + row * 16
 
-        obj = Obj(x, y, batch=batch, **kwargs)
-        for group in groups:
-            self.objects[group].add(obj)
-        self.objects['all'].add(obj)
-
+    def add(self, obj):
+        for tag in obj.tags:
+            self.objects[tag].add(obj)
+        self.all_objects.add(obj)
 
     def remove(self, obj, reveal=True):
         if reveal and hasattr(obj, 'contains'):
-            self.create(obj.x, obj.y, **obj.contains)
+            self.create(obj.x, obj.y, obj.contains)
 
-        if obj in self.objects['all']:
-            if obj.graphic:
-                obj.graphic.delete()
+        if obj in self.all_objects:
+            obj.destroy()
+            self.all_objects.remove(obj)
 
         for group in self.objects.values():
             group.discard(obj)
 
-    def update(self, obj, **aspects):
-        for aspect, value in aspects.items():
-            setattr(obj, aspect, value)
-        aspects = set(aspects)
-
-        if {"x", "y"} & aspects:
-            self._update_position()
-
-        if obj.sprite_update_on & aspects:
-            self._update_sprite()
-
-        if "tags" in aspects:
-            self._update_tags()
-
-    def _update_tags(self, obj, tags):
+    def update(self, obj):
         for group in self.objects.values():
             group.discard(obj)
-        for tag in tags:
+        for tag in obj.tags:
             self.objects[tag].add(obj)
 
-    def _update_position(self, obj, x, y):
 
-
-    def _update_sprite(self, obj):
-        obj.
-
-
-
-board = Board(wnd.width / 2, wnd.height / 2, **levels.parse_level('level1'))
+board = Board(wnd.width / 2, wnd.height / 2, levels.parse_level('level1'))
 player = next(iter(board.objects['player']))  # first elem of player set
 
 
-def update_bombs(dt):
-    to_remove = []
-    for bomb in board.objects['bomb']:
-        bomb.delay -= dt
-        if bomb.delay <= 0:
-            to_remove.append(bomb)
-    for bomb in to_remove:
-        board.remove(bomb)
+def explose(x, y, power):
+    board.add(Explosion(x=x, y=y))
+    delay(0.1, create_flame, x, y, direction=(-1, 0), power - 1)
+    delay(0.1, create_flame, x, y, direction=(+1, 0), power - 1)
+    delay(0.1, create_flame, x, y, direction=(0, -1), power - 1)
+    delay(0.1, create_flame, x, y, direction=(0, +1), power - 1)
 
-
-# TODO: separate spawning points
-def update_explosions(dt):
-    to_remove = []
-    for explosion in board.objects['explosion']:
-        explosion.life -= dt
-        explosion.delay -= dt
-        if explosion.life <= 0:
-            to_remove.append(explosion)
-        if explosion.delay <= 0 and not hasattr(explosion, 'flame_created'):
-            print('boom')
-            explosion.flame_created = True
-            x = explosion.x
-            y = explosion.y
-            w = explosion.graphic.width
-            h = explosion.graphic.height
-            base = {'power': explosion.power - 1, 'life': explosion.life}
-            board.create(x - w, y, direction=(-1, 0), **levels.FLAME, **base)
-            board.create(x + w, y, direction=(1, 0),  **levels.FLAME, **base)
-            board.create(x, y - h, direction=(0, -1), **levels.FLAME, **base)
-            board.create(x, y + h, direction=(0, 1), **levels.FLAME, **base)
-
-    for explosion in to_remove:
-        board.remove(explosion)
-
-
-def update_flames(dt):
-    to_remove = []
-    to_create = []
-    for flame in board.objects['flame']:
-        flame.life -= dt
-        flame.delay -= dt
-        if flame.life <= 0:
-            to_remove.append(flame)
-        if flame.power == 0:
-            continue
-        if flame.delay <= 0 and not hasattr(flame, 'flame_created'):
-            print('flame')
-            flame.flame_created = True
-            to_create.append({
-                'x': flame.x + flame.graphic.width * flame.direction[0],
-                'y': flame.y + flame.graphic.height * flame.direction[1],
-                'power': flame.power - 1, 'direction': flame.direction,
-                'life': flame.life, **levels.FLAME,
-            })
-
-    for flame in to_remove:
-        board.remove(flame)
-
-    for flame in to_create:
-        board.create(**flame)
+def create_flame(x, y, dir, power):
+    x +=  dir[0] * 16
+    y +=  dir[1] * 16
+    board.add(Flame(x=x, y=y, direction=direction))
+    if power > 0:
+        delay(0.1, create_flame, x, y, direction=(-1, 0), power - 1)
 
 
 def update_mobs(dt):
@@ -175,7 +108,7 @@ def update_mobs(dt):
     player.move(dt)
 
 
-def intersect(a, b):
+def intersect(, b):
     dcx = b.x - a.x
     dcy = b.y - a.y
 
@@ -195,38 +128,64 @@ def lay_bomb():
     nb_bombs = len(bombs)
 
     if nb_bombs >= player.max_bomb:
-        return
+        return  # Max bomb reached
 
-    x, y = board.get_cell_coord(player.x, player.y)
+    col, row = board.get_cell_coord(player.x, player.y)
 
     for bomb in bombs:
-        if x == bomb.cell_x and y == bomb.cell_y:
-            return
+        if col == bomb.col and row == bomb.row:
+            return  # Bomb already layed
 
-    bomb = {
-        **levels.BOMB,
-        'cell_x': x,
-        'cell_y': y,
-        'contains': {
-            **levels.EXPLOSION, 'power': player.flame
-        },
-    }
-    board.create_on_board(x, y, bomb)
+    x, y = board.get_xy_coord(col, row)
+    world.add(Bomb(x=x, y=y, col=col, row=row))
+    bomb.when_animation_ends(explode, bomb, player.flame)
 
 
-def move_player(dt):
-    dir_x = keys[key.LEFT] * -1.0 + keys[key.RIGHT] * 1.0
-    dir_y = keys[key.DOWN] * -1.0 + keys[key.UP] * 1.0
+WALK_SPRITE_GIVEN_DIRECTION = {
+    (0, 1): "player.up.walk",
+    (0, -1): "player.down.walk",
+    (1, 0): "player.right.walk",
+    (-1, 0): "player.left.walk",
+    (1, 1): "player.right.walk",
+    (-1, 1): "player.left.walk",
+    (1, -1): "player.right.walk",
+    (-1, -1): "player.left.walk",
+}
 
-    if not dir_x and not dir_y:
+
+def flame_sprite(obj):
+    obj.direction
+
+
+
+def update_player_sprite(direction):
+    if player.direction == direction:
+        return
+    player.direction = direction
+
+    if direction == (0, 0):
+        new_sprite = player.sprite.replace('walk', 'static')
+    else:
+        new_sprite = WALK_SPRITE_GIVEN_DIRECTION[direction]
+
+    player.update_sprite(new_sprite)
+
+
+def move_player(world, dt):
+    direction = Vec2(
+        keys[key.LEFT] * -1.0 + keys[key.RIGHT] * 1.0
+        keys[key.DOWN] * -1.0 + keys[key.UP] * 1.0
+    )
+
+    if direction == (0.0, 0.0):
         return
 
-    if dir_x and dir_y:
-        dir_x *= 0.7071
-        dir_y *= 0.7071
+    if direction.x and direction.y:
+        direction.x *= 0.7071
+        direction.y *= 0.7071
 
-    new_x = player.x + dir_x * dt * player.speed
-    new_y = player.y + dir_y * dt * player.speed
+    new_x = player.position.x + direction.x * dt * player.speed
+    new_y = player.position.y + direction.y * dt * player.speed
     bb = BB(new_x, new_y, player.rx, player.ry)
 
     for obstruction in board.objects['obstruction']:
@@ -247,10 +206,6 @@ def move_player(dt):
 
 
 def apply_time_rules(dt):
-    update_mobs(dt)
-    update_flames(dt)
-    update_explosions(dt)
-    update_bombs(dt)
 
 
 def manage_collisions():
@@ -308,16 +263,30 @@ def draw_graphics():
     statics.draw()
 
 
-def update(dt):
-    lay_bomb()
-    move_player(dt)
-    apply_time_rules(dt)
-    manage_collisions()
-    update_graphic_positions()
-    draw_graphics()
+class BomberGame(Game):
+
+
+    def step(self, dt):
+        lay_bomb()
+        move_player(dt)
+        update_mobs(dt)
+        update_flames(dt)
+        update_explosions(dt)
+        update_bombs(dt)
+        manage_collisions()
+        update_graphic_positions()
+        draw_graphics()
+
+
 
 
 if __name__ == "__main__":
+    wnd = pyglet.window.Window()
+    game = game(steps=[update)
+    .init()
+    keys = pyglet.window.key.KeyStateHandler()
+    wnd.push_handlers(keys)
+
     pyglet.clock.schedule_interval(update, 0.015)
     pyglet.app.run()
 
