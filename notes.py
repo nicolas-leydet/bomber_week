@@ -360,3 +360,101 @@ simple quadtree impl.
 https://github.com/karimbahgat/Pyqtree/blob/master/pyqtree.py
 
 """
+"""
+    def amend_move(self, penetrations):
+        keep_biggest_px = max if self.dx > 0 else min
+        keep_biggest_py = max if self.dy > 0 else min
+
+        correction_dx = 0.0
+        correction_dy = 0.0
+
+        penetrations_left = []
+
+        for px, py in penetrations:
+            if not is_penetration_caused_by_move(px, self.dx):
+                dy_correction = keep_biggest_py(py, dy_correction)
+                break
+
+            if not is_penetration_caused_by_move(py, self.dy):
+                dx_correction = keep_biggest_px(px, dx_correction)
+                break
+
+            penetrations_left.append((px, py))
+
+        for px, py in penetrations_left:
+            if px == py:
+                dx_correction = keep_biggest_px(px, dx_correction)
+                dy_correction = keep_biggest_py(py, dy_correction)
+            elif px > py:
+                dy_correction = keep_biggest_py(py, dy_correction)
+            else:
+                dx_correction = keep_biggest_px(px, dx_correction)
+
+        self.x += correction_dx
+        self.y += correction_dy
+
+    def advance(self, dt):
+        last_index = len(self.delayed) - 1
+        for index, delayed_action in enumerate(reversed(self.delayed)):
+            delayed_action['delay'] -= dt
+            if delayed_action['delay'] <= 0:
+                self.update_aspects(delayed_action['actions'])
+                self.delayed.pop(last_index - index)
+
+    def amend_move(self, penetrations):
+        keep_biggest_px = max if self.dx > 0 else min
+        keep_biggest_py = max if self.dy > 0 else min
+
+        correction_dx = 0.0
+        correction_dy = 0.0
+
+        penetrations_left = []
+
+        for px, py in penetrations:
+            if not is_penetration_caused_by_move(px, self.dx):
+                dy_correction = keep_biggest_py(py, dy_correction)
+                break
+
+            if not is_penetration_caused_by_move(py, self.dy):
+                dx_correction = keep_biggest_px(px, dx_correction)
+                break
+
+            penetrations_left.append((px, py))
+
+        for px, py in penetrations_left:
+            if px == py:
+                dx_correction = keep_biggest_px(px, dx_correction)
+                dy_correction = keep_biggest_py(py, dy_correction)
+            elif px > py:
+                dy_correction = keep_biggest_py(py, dy_correction)
+            else:
+                dx_correction = keep_biggest_px(px, dx_correction)
+
+        self.x += correction_dx
+        self.y += correction_dy
+
+    def advance(self, dt):
+        last_index = len(self.delayed) - 1
+        for index, delayed_action in enumerate(reversed(self.delayed)):
+            delayed_action['delay'] -= dt
+            if delayed_action['delay'] <= 0:
+                self.update_aspects(delayed_action['actions'])
+                self.delayed.pop(last_index - index)
+
+def is_penetration_caused_by_move(p, m):
+    if m < 0:  # negative move
+        if p > 0:
+            return False
+        if p < m:
+            return False
+    else:  # positive move
+        if p < 0:
+            return False
+        if p > m:
+            return False
+    return True
+
+
+
+
+"""

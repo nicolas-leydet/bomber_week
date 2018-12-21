@@ -133,43 +133,26 @@ class _Obj:
         self._graphic.delete()
 
 
-Player = Obj(
-    sprite='player.down.static', bb=(14, 14),
-    max_bomb=1, flame=1, speed=35,
-    tags=['player', 'mob'],
-)
-
 
 class Trait:
-    next_trait_id = 0
-
-    def __init__(self, trait_id=None, **attributes):
-        if trait_id:
-            self._id = trait_id
-        else:
-            self._id = next_trait_id
-            next_trait_id += 1
+    def __init__(self, name, selectable, depends_on, attributes):
+        self.name = name
+        self.selectable = selectable
+        self.depends_on = depends_on
         self.attributes = attributes
 
-    def replace(self, **attributes):
-        return Trait(trait_id=self._id, **attributes)
-
     def __call__(self, **attributes):
-        return self.replace(**attributes)
+        return Trait(self.name, self.selectable, self.depends_on, attributes)
 
 
-class EntityType
-    def __init__(self, *traits, ):
-
-
-def update_sprite(world):
+def update_sprite(world, dt):
     for entity in world.get_entities_with(Sprite):
         new_sprite = entity.get_sprite()
-        if entity.graphic.sprite != new_sprite:
+        if entity.graphic.image != new_sprite:
             entity.graphic.image = sprite
 
 
-def lay_bomb(world):
+def lay_bomb(world, dt):
     bombs = world.get_entities_with(Explosive)
     nb_bombs = len(bombs)
 
@@ -211,33 +194,68 @@ class ShapeType(Enum):
     RECT = 2
 
 
+def trait(
+        cls_or_name=None, *,
+        name: str = None,
+        selectable: bool = True,
+        depends_on: List[Trait] = None):
+    if isinstance(cls_or_name, str):  # Name
+        return None
+    elif isinstance(cls_or_name, type):  # Class
+        return make_trait(cls_or_name)
+
+
+# Traits
+@trait
+class Position:
+    position: Vec2 = Vec2(0.0, 0.0)
+    cell: Optional[Vec2] = None
+
+
+@trait(depend_on=[Position])
+class Mobile:
+    direction: Vec2 = Vec2(0.0, 0.0)
+    speed: int = 32
+
+
+@trait
+class Collidable:
+    shape: ShapeType = ShapeType.RECT
+    radius: Vec2 = Vec2(16, 16)
+
+
+@trait
+class BombLayer:
+    max_bomb: int = 1
+    bomb_power: int = 1
+
+
+@trait(name="drawable", depends_on=[Position])
+class Sprite:
+    ephemeral: bool = False
+
+    def finalize(self, entity):
+        entity.graphic = pyglet.Sprite(entity.get_sprite(), entity.position
+                                       ephemeral=ephemeral)
 
 
 
-## Traits
-position = Trait(position=(0.0, 0.0), cell=None)
-movement = Trait(direction=(0.0, 0.0), speed=35)
-obstruction = Trait()
-fireproof = Trait()
-explosive = Trait(power=1)
-flame = Trait(power=0)
-collidable = Trait(shape=ShapeType.RECT, radius=(16, 16))
-bomb_layer = Trait(max_bomb=1, power=1)
-sprite = Trait(get_sprite=Trait.method, graphic=None)
-ephemeral = Trait(lifespan=2.0)
+
+@trait
+class Explosive:
+    explosion_power: int
 
 
-@dataclass
-class CollisionShape:
+@trait
+class flame:
+    explosion_power: int
 
 
+Obstruction = trait("obstruction")
+Fireproof = trait("fireproof")
 
 
-sprite = Trait(graphic=None)
-static_strite = sprite()
-
-
-## Entity Types
+# Entity Types
 Player = Entity(position, movement, player_sprite, bomb_layer)
 StrongWall = Entity()
 StupidMonster = Entity(
@@ -248,16 +266,26 @@ StupidMonster = Entity(
 
 class Entity:
     def __init__(self, **overrides):
+        attributes = {}
         for trait in self.traits:
-            self.__dict__.update(trait.attributes)
+            attributes.update(trait.attributes)
+        self.__dict__.update(attributes)
         self.__dict__.update(overrides)
+        for trait in self.traits:
+            trait.finalize(self)
+
+
+class Player(Entity):
+    traits = [Position, Mobile, Sprite, BombLayer, Collidable, Controlled]
+    get_sprite =
+
+
+class Wall(Entity):
+    traits = [Position, StaticSprite('wall.weak'), Collidable, Obstruction]
 
 
 class StrongWall(Entity):
-    traits = [position, sprite, collision, fireproof]
-
-    def get_sprite(self):
-        pass
+    traits = [Position, StaticSprite('wall.strong'), Collidable, Obstruction, Fireproof]
 
 
 class Controller:
