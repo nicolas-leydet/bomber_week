@@ -359,6 +359,7 @@ class SceneManager:
 
 class Game:
     def __init__(self):
+        self.wnd = pyglet.window.Window()
         self.entities = defaultdict(set)
         self.framents = {}
         self.step_fragment = []
@@ -393,17 +394,22 @@ class Game:
 
 
 
-menu
-hud
-level
+class Game():
+    def __init__(self):
+
+    def step(self, dt):
+        pass
+
+
+
+class Bomberman(Game):
+    def configure(self):
+        pass
+
+    def step(self, dt):
+        pass
+
 
 
 if __name__ == "__main__":
-    game = Game()
-    game.add_fragments(scene_manager=SceneManager())
-
-
-    world = World(SceneManager(), Menu())
-    world.run(min_dt=0.015)
-
-
+    Bombermam().run()
